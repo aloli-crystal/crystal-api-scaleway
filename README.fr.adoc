@@ -115,6 +115,34 @@ end
 L'exemple complet est dans
 link:examples/provision_debian_baremetal.cr[`examples/provision_debian_baremetal.cr`].
 
+== Rescue via API
+
+Pour basculer un serveur Elastic Metal en mode rescue (utile pour
+dépanner un OS cassé ou réinitialiser un mot de passe) :
+
+[source,crystal]
+----
+server = client.baremetal.servers.reboot(
+  server_id: "abc-123",
+  boot_type: ScalewayApi::Endpoints::Baremetal::BootType::Rescue,
+  zone:      "fr-par-2",
+)
+----
+
+Scaleway *ré-injecte automatiquement* les clés SSH posées à la création
+du serveur (celles du champ `ssh_key_ids` de l'`install` initial) dans
+l'environnement rescue : pas besoin de les réuploader ni de les passer
+en argument. L'IP de management reste la même qu'en mode normal (pas de
+NAT ni de bastion intermédiaire).
+
+Le rescue dure environ *1 heure*, après quoi Scaleway reboote
+automatiquement le serveur sur l'OS installé. Pour sortir du rescue
+avant la fin du délai, appelez à nouveau `reboot` avec
+`BootType::Normal`.
+
+Les états transitoires attendus : `stopping` → `starting` → `rescue`
+(puis, après bascule automatique, retour en `ready`).
+
 == Obtenir une clé API Scaleway
 
 . Se connecter sur https://console.scaleway.com/iam/api-keys[console.scaleway.com/iam/api-keys].

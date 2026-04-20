@@ -9,6 +9,19 @@ et ce projet suit https://semver.org/lang/fr/[Semantic Versioning].
 
 == [Non publié]
 
+== 0.2.0 (20 avril 2026)
+
+=== Ajouté
+
+* `client.baremetal.servers.reboot(zone, server_id, boot_type: BootType::Rescue)` :
+  redémarre un Elastic Metal avec choix du mode boot (`normal` ou `rescue`).
+  Les clés SSH posées à la création sont ré-injectées automatiquement par
+  Scaleway dans le rescue, pas besoin de refaire quoi que ce soit côté
+  compte. Rescue par défaut : ~1 h avant bascule auto en normal.
+* Enum `ScalewayApi::Endpoints::Baremetal::BootType` : `Normal` | `Rescue`.
+
+== 0.1.0 (20 avril 2026)
+
 === Ajouté
 
 ==== Fondations du projet

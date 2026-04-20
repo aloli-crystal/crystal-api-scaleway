@@ -177,6 +177,36 @@ serveur (`GET /servers/{id}/events`). Un événement a :
 logique de boucle d'attente est laissée à l'appelant : elle dépend du
 contexte (fréquence, timeout, action ciblée).
 
+=== ADR-011 — Rescue : pas de clé SSH à repasser (Accepted)
+
+*Contexte.* Côté OVH, basculer un serveur en rescue exige de passer
+explicitement un `ssh_key_name` à chaque appel : la clé n'est pas
+mémorisée entre le boot normal et le boot rescue, et l'appelant doit
+donc conserver (ou re-résoudre) le nom de la clé à injecter.
+
+Côté Scaleway, le flux est plus simple : les clés posées dans
+l'`install` initial (champ `ssh_key_ids`) sont *ré-injectées
+automatiquement* par Scaleway dans l'environnement rescue. L'appelant
+n'a rien à fournir au moment du reboot — seulement le mode (`normal`
+ou `rescue`).
+
+*Décision.* `Servers#reboot(server_id, boot_type:)` ne prend pas
+d'argument `ssh_key_name` ou `ssh_key_ids`, contrairement à son
+pendant OVH. Le corps JSON envoyé à Scaleway est minimal :
+`{"boot_type": "normal" | "rescue"}`.
+
+*Conséquence.* L'appelant (notamment crystal-beryl) n'a pas besoin
+de remonter la clé SSH utilisée à l'install au moment de la bascule
+en rescue — un round-trip de moins à orchestrer. En contrepartie, si
+la clé a été révoquée dans l'IAM *après* l'install, Scaleway la
+ré-injectera quand même en rescue : c'est une propriété *snapshot
+au moment de l'install*, pas un lookup dynamique.
+
+*Autre propriété à noter.* Le rescue Scaleway a une durée de vie
+d'environ 1 h, après quoi le serveur est automatiquement rebooté sur
+l'OS installé. Pas de désactivation manuelle requise côté appelant si
+l'intervention dure moins longtemps.
+
 === ADR-010 — Licence et dépôt (Accepted)
 
 * Licence : *MIT*, conforme à la convention des shards Aloli.
