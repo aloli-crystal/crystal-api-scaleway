@@ -1,0 +1,77 @@
+= Changelog
+:toc: left
+:toclevels: 2
+
+Toutes les modifications notables de ce projet sont documentées dans ce fichier.
+
+Le format s'inspire de https://keepachangelog.com/fr/1.1.0/[Keep a Changelog]
+et ce projet suit https://semver.org/lang/fr/[Semantic Versioning].
+
+== [Non publié]
+
+=== Ajouté
+
+==== Fondations du projet
+
+* Squelette initial (`shard.yml`, `LICENSE` MIT, README bilingue FR/EN).
+* Convention Aloli : branche par défaut `production`, messages de commit
+  en français, licence MIT, auteurs `ALOLI sas`.
+
+==== Cœur du client
+
+* `ScalewayApi::Client` : authentification par en-tête `X-Auth-Token`,
+  sans signature ni synchronisation d'horloge (API Scaleway bien plus
+  simple que celle d'OVH de ce côté-là).
+* Routage par zone : `default_zone` fixé à `fr-par-2`, surchargeable par
+  client ou par appel. La zone fait partie du chemin
+  (`/baremetal/v1/zones/{zone}/...`), pas du hostname.
+* `default_project_id` optionnel à la construction, indispensable pour
+  les créations de ressources.
+* Transport HTTP abstrait `ScalewayApi::HttpTransport` avec
+  implémentation `DefaultHttpTransport` (stdlib `HTTP::Client`), permet
+  l'injection d'un double en test.
+
+==== Endpoints de provisioning
+
+* *SSH keys IAM* (`/iam/v1alpha1/ssh-keys`) : `list`, `get`, `create`,
+  `delete` — toutes portées par un `project_id`.
+* *Elastic Metal offers* (`/baremetal/v1/zones/{zone}/offers`) : `list`,
+  `get`. Exposition brute du payload Scaleway via `Offer#raw` pour les
+  détails matériels et tarifaires.
+* *Elastic Metal OSes* (`/baremetal/v1/zones/{zone}/os`) : `list`, `get`,
+  `find_by_name_prefix` (helper pour résoudre `"debian"` → `os_id`).
+* *Elastic Metal servers* (`/baremetal/v1/zones/{zone}/servers`) :
+  `list`, `get`, `create` (création + installation couplées), `install`
+  (réinstallation d'un serveur existant), `update` (notamment le reverse
+  DNS), `delete`, `events` (suivi d'installation).
+* `Install` : struct avec `os_id`, `hostname`, `ssh_key_ids` +
+  `user`/`password`/`service_user`/`service_password` optionnels.
+  Sérialisation qui omet les champs nil (Scaleway refuse `null`).
+* DNS inverse via le champ `reverse` de `servers.create` et
+  `servers.update` (Scaleway n'a pas d'endpoint dédié comme OVH).
+
+==== Taxonomie d'erreurs
+
+* `ScalewayApi::Error` (base).
+* `AuthenticationError` (HTTP 401/403).
+* `NotFound` (HTTP 404).
+* `RateLimited` (HTTP 429, expose `retry_after`).
+* `ApiError` (autres, expose `http_status` et `error_code` —
+  correspond au champ `type` de la réponse d'erreur Scaleway, ex.
+  `"invalid_argument"`, `"quotas_exceeded"`, `"permissions_denied"`).
+
+==== Tests et exemples
+
+* Specs Crystal avec `FakeTransport` pur stdlib (aucun appel réseau) :
+  en-têtes, query strings, corps JSON, gestion d'erreurs, sérialisation
+  des `Server`, `Event`, `Install`, `SshKey`, `Offer`, `Os`.
+* Exemple exécutable
+  `examples/provision_debian_baremetal.cr` : création + installation
+  Debian + polling événements + lecture des IPs, avec garde-fou
+  `SCW_CONFIRM=yes`.
+
+==== Intégration continue
+
+* CI GitHub Actions : format Crystal + specs sur Linux et FreeBSD 15
+  via `cross-platform-actions/action`, avec compilation de l'exemple
+  (`mkdir -p bin && crystal build ...`).

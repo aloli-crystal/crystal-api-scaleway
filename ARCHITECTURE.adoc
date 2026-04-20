@@ -1,0 +1,231 @@
+= scaleway-api — Architecture
+:toc: left
+:toc-title: Table des matières
+:toclevels: 3
+:source-highlighter: rouge
+:icons: font
+
+Ce document décrit le modèle d'authentification, le routage par zone et la
+taxonomie d'erreurs exposée par ce shard.
+
+== Périmètre
+
+[cols="1,3"]
+|===
+| scaleway-api fait | scaleway-api ne fait pas
+
+| Pose de `X-Auth-Token` sur chaque requête.
+| OAuth / JWT (Scaleway n'en propose pas pour l'API publique).
+
+| Construction des URL `base + /baremetal/v1/zones/{zone}/...`.
+| Cache distribué d'état (la zone est passée à chaque appel si différente).
+
+| Transport HTTP abstrait, injectable, stdlib par défaut.
+| Client HTTP asynchrone à la place de `HTTP::Client`.
+
+| Taxonomie d'erreurs fine (401 / 403 / 404 / 429 / autres).
+| Backoff automatique sur 429 (l'appelant gère `retry_after`).
+|===
+
+== Décisions clés
+
+=== ADR-001 — Pure stdlib Crystal (Accepted)
+
+*Contexte.* Le shard vise une intégration dans crystal-beryl, qui est
+déjà en pure stdlib. Ajouter une dépendance (crest, halite…) démultiplierait
+la surface de maintenance.
+
+*Décision.* scaleway-api n'utilise que `HTTP::Client`, `JSON` et `URI` de
+la stdlib. Aucun `dependencies:` dans `shard.yml`.
+
+*Conséquences.* Pas de `WebMock` non plus : les tests utilisent un
+`FakeTransport` maison, plus simple et explicite (cf. ADR-004).
+
+=== ADR-002 — Authentification par `X-Auth-Token` (Accepted)
+
+*Contexte.* L'API Scaleway demande un seul en-tête : `X-Auth-Token`, qui
+contient la `secret_key` d'une clé IAM. Pas de signature HMAC, pas de
+timestamp, pas de challenge.
+
+*Décision.* `Client#call` pose systématiquement l'en-tête avec la
+`secret_key` fournie à la construction. Aucune logique de rotation :
+si la clé est révoquée, l'API renvoie 401 et le client lève
+`AuthenticationError`.
+
+*Comparaison avec crystal-ovh-api.* L'absence de signature simplifie
+drastiquement le client : pas de `/auth/time`, pas d'offset d'horloge,
+pas de SHA-1. C'est pour cela qu'on n'expose pas non plus de
+`#server_time` ou de `#sign` publics.
+
+=== ADR-003 — Routage par zone dans l'URL (Accepted)
+
+*Contexte.* Contrairement à OVH qui a un hostname par région
+(`eu.api.ovh.com`, `ca.api.ovh.com`), Scaleway a *un seul* hostname
+(`api.scaleway.com`) et met la zone dans le chemin : `/baremetal/v1/zones/fr-par-2/...`.
+
+*Décision.* Le client porte un `default_zone` (fr-par-2) ; chaque appel
+Elastic Metal accepte un `zone:` optionnel qui prime. La liste `ZONES`
+est purement indicative : le client accepte n'importe quelle chaîne,
+afin de ne pas devoir être mis à jour à chaque ouverture de nouveau
+datacenter.
+
+Les endpoints IAM (`/iam/v1alpha1/ssh-keys`) ne sont *pas* zonés — les
+clés SSH sont globales par projet.
+
+=== ADR-004 — Transport HTTP abstrait (Accepted)
+
+*Contexte.* Pour tester la construction d'URL, la sérialisation des
+corps et la gestion d'erreurs sans appel réseau, et sans WebMock, il
+faut intercepter la couche HTTP.
+
+*Décision.* Classe abstraite `ScalewayApi::HttpTransport` avec une seule
+méthode `#request(method, url, headers, body) : {Int32, String}`. Deux
+implémentations : `DefaultHttpTransport` (stdlib `HTTP::Client`) et
+`FakeTransport` (dans `spec_helper.cr`, enregistre les requêtes et
+renvoie des stubs prédéfinis).
+
+*Conséquences.* Les specs sont déterministes, sans flakiness réseau.
+Coût : une interface et une classe de stub.
+
+=== ADR-005 — Taxonomie d'erreurs (Accepted)
+
+*Contexte.* Scaleway renvoie son corps d'erreur au format
+`{"type": "...", "message": "...", "details": [...]}`. Le champ `type`
+est un slug énuméré (`"invalid_argument"`, `"quotas_exceeded"`,
+`"resource_not_found"`, `"permissions_denied"`, …).
+
+*Décision.*
+
+[cols="1,1,3"]
+|===
+| HTTP | Classe | Sens
+
+| 401, 403 | `AuthenticationError` | Clé invalide, permissions IAM insuffisantes.
+| 404      | `NotFound`            | Ressource absente (serveur, clé, offer, os).
+| 429      | `RateLimited`         | Quota dépassé. Expose `#retry_after` si détectable.
+| 5xx / autres | `ApiError`        | Expose `#http_status` et `#error_code` (champ `type`).
+|===
+
+Toutes héritent de `ScalewayApi::Error`, ce qui permet un `rescue` global.
+
+=== ADR-006 — Création et installation couplées (Accepted)
+
+*Contexte.* Scaleway combine `POST /servers` *et* installation en un
+seul appel : le corps peut contenir un objet `install` (avec `os_id`,
+`hostname`, `ssh_key_ids`), auquel cas le serveur passe directement en
+état `delivering` puis `installing`.
+
+Sans `install`, le serveur reste en `ready` après livraison et il faut
+appeler `POST /servers/{id}/install` séparément pour lancer l'OS.
+
+*Décision.* `Servers#create` requiert un objet `Install` — c'est le cas
+d'usage principal (provisionner un serveur prêt à l'emploi). Un appel
+séparé `Servers#install` est exposé pour réinstaller un serveur
+existant.
+
+*Conséquence.* Le flot est plus compact que chez OVH, où
+`ordering/cart` + `install/start` + `task` étaient trois appels distincts
+avec des délais d'heures entre eux.
+
+=== ADR-007 — Reverse DNS via le champ `reverse` (Accepted)
+
+*Contexte.* Scaleway n'a pas d'endpoint `/ip/{ip}/reverse` séparé. Le
+reverse d'un serveur Elastic Metal est un *attribut du serveur*, posé
+soit à la création (`POST /servers`, champ `reverse`), soit à la mise à
+jour (`PATCH /servers/{id}`, champ `reverse`).
+
+*Décision.* Pas de sous-endpoint `ips`. Les méthodes `Servers#create` et
+`Servers#update` acceptent un argument `reverse:`, et le reverse remonte
+via `Server#ips.first.reverse` à la lecture.
+
+=== ADR-008 — Install comme struct, pas comme Hash (Accepted)
+
+*Contexte.* L'objet `install` a entre 3 et 7 champs, dont plusieurs
+optionnels (`user`, `password`, `service_user`, `service_password`).
+Exposer un `Hash(String, String|Nil)` forcerait l'appelant à gérer la
+sérialisation et laisserait passer des fautes de frappe sur les clés.
+
+*Décision.* Une struct `Install` avec constructeur nommé et méthode
+`#to_json_object` qui omet les champs nil (Scaleway rejette `"user": null`
+avec `invalid_argument`). Cela donne un pattern clean :
+
+[source,crystal]
+----
+install = ScalewayApi::Endpoints::Baremetal::Install.new(
+  os_id:       os.id,
+  hostname:    "web01.aloli.fr",
+  ssh_key_ids: [key.id],
+)
+----
+
+*Non-objectif v0.1.* Le champ `cloud_init` existe côté API mais n'est pas
+exposé : l'écosystème Aloli pose sa propre post-install via crystal-beryl
+après le premier boot (cf. roadmap).
+
+=== ADR-009 — Modélisation des événements (Accepted)
+
+*Contexte.* Scaleway ne renvoie pas de `Task` indexé par `id` comme OVH ;
+le suivi d'une installation se fait en listant les *événements* du
+serveur (`GET /servers/{id}/events`). Un événement a :
+
+* `id`
+* `action`     (ex. `"install_server"`, `"start_server"`, `"stop_server"`)
+* `status`     (ex. `"pending"`, `"running"`, `"success"`, `"error"`)
+* `created_at`, `updated_at`
+
+*Décision.* Struct `Event` simple, avec `#success?` et `#failed?`. La
+logique de boucle d'attente est laissée à l'appelant : elle dépend du
+contexte (fréquence, timeout, action ciblée).
+
+=== ADR-010 — Licence et dépôt (Accepted)
+
+* Licence : *MIT*, conforme à la convention des shards Aloli.
+* Organisation GitHub : https://github.com/aloli-crystal[aloli-crystal].
+* Nom du dépôt : `crystal-scaleway-api`, nom du shard : `scaleway-api`.
+* Branche par défaut : `production` (convention Aloli).
+* Langue des messages de commit : français.
+
+== Flux d'appel
+
+----
+┌──────────────────┐                  ┌───────────────────┐
+│ ScalewayApi::Client│                  │ api.scaleway.com  │
+│                  │                  │                   │
+│   call()         │ ── X-Auth-Token ──►                   │
+│                  │ ── JSON body ─────►                   │
+│                  │ ◄── 200 JSON ──────                   │
+│                  │                  │                   │
+│ Endpoints::      │                  │                   │
+│   Baremetal::    │                  │                   │
+│     Servers      │                  │                   │
+└──────────────────┘                  └───────────────────┘
+----
+
+== Flux de provisioning
+
+. `client.ssh_keys.create(...)` → obtenir l'`id` de la clé publique.
+. `client.baremetal.offers.list` → choisir une offre `stock == "available"`.
+. `client.baremetal.oses.find_by_name_prefix("debian")` → `os_id`.
+. `client.baremetal.servers.create(offer_id:, install:, reverse:)` →
+  Scaleway provisionne le matériel et lance l'installation.
+. Boucle `client.baremetal.servers.events(server_id:)` toutes les 30 s
+  jusqu'à voir un `install_server` en `success` ou en `error`.
+
+Un cycle provisioning + install Debian dure typiquement 10 à 30 minutes
+côté Scaleway.
+
+== Feuille de route
+
+=== v0.2 (envisagé)
+
+* Pagination automatique transparente sur `list` (parcours de toutes les
+  pages).
+* Helper `#wait_for_install(server_id, interval:, timeout:)` synchrone.
+* Champ `cloud_init` sur `Install` (déploiement sans crystal-beryl).
+* Endpoints `Options` (snapshots, réseau privé, licence Windows).
+
+=== v1.0 (non engagé)
+
+* Couverture Instance (VPS), Kubernetes, Object Storage.
+* Support zones DNS (`/domain/v2beta1/dns-zones`).
+* Token refresh / rotation automatique pour les process longue durée.

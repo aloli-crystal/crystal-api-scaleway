@@ -1,0 +1,16 @@
+name: scaleway-api
+version: 0.1.0
+
+description: >
+  Client Crystal pur (stdlib uniquement) pour l'API Scaleway REST v1.
+  Couvre les endpoints nécessaires au provisioning Elastic Metal : clés
+  SSH (IAM), serveurs bare-metal (offers, OS, create/install, événements),
+  DNS inverse via le champ `reverse` du serveur. Zéro dépendance externe,
+  authentification par jeton `X-Auth-Token`.
+
+authors:
+  - ALOLI sas <philippe@aloli.fr>
+
+crystal: ">= 1.19.1"
+
+license: MIT

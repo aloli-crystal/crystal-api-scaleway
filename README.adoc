@@ -1,0 +1,158 @@
+= scaleway-api
+:toc: left
+:toc-title: Table of Contents
+:toclevels: 3
+:source-highlighter: rouge
+:icons: font
+
+Pure-Crystal client (stdlib only) for the https://www.scaleway.com/en/developers/api/[Scaleway REST API v1].
+Covers the endpoints needed to provision Elastic Metal dedicated servers: IAM
+SSH keys, offer catalogue, OS templates, combined create + install, event
+polling, reverse DNS.
+
+[NOTE]
+====
+*scaleway-api* is a sister project in the Aloli Crystal ecosystem, alongside
+https://github.com/aloli-crystal/crystal-ovh-api[crystal-ovh-api] (the OVHcloud
+counterpart), https://github.com/aloli-crystal/crystal-beryl[crystal-beryl]
+(agentless FreeBSD configuration) and
+https://github.com/aloli-crystal/crystal-silex[crystal-silex] (pure-Crystal
+FAT12 / cloud-init NoCloud writer). Zero external dependencies: only
+`HTTP::Client`, `JSON`, `URI` from the Crystal stdlib.
+====
+
+== Why scaleway-api?
+
+Scaleway ships official SDKs for Go, Python, Node and PHP, but not Crystal.
+scaleway-api exposes an idiomatic Crystal API, easy to test by injecting a
+fake HTTP transport, with a scope limited to real bare-metal provisioning
+needs — not a blanket wrapper for all 70+ Scaleway products.
+
+== Features
+
+* *Pure Crystal*: no runtime dependencies (stdlib `HTTP::Client`, `JSON`, `URI`).
+* *Simple auth*: single `X-Auth-Token` header per request. No signing.
+* *Multi-zone*: `fr-par-2` default, overridable per client or per call.
+* *Injectable transport*: abstract `HttpTransport`, trivial stub for specs.
+* *Error taxonomy*: `AuthenticationError` (401/403), `NotFound` (404),
+  `RateLimited` (429, exposes `retry_after`), `ApiError` (other, surfaces
+  the Scaleway `type` field as `error_code`).
+
+== Scope
+
+[cols="1,3"]
+|===
+| scaleway-api does | scaleway-api does not (yet)
+
+| IAM SSH keys (`/iam/v1alpha1/ssh-keys`): list, get, create, delete.
+| IAM users / groups / policies.
+
+| Elastic Metal: offers, os, servers (list/get/create/install/update/delete/events).
+| Instances, Kubernetes, object storage, databases.
+
+| Reverse DNS via the `reverse` field on servers.create / servers.update.
+| `/domain/v2beta1/dns-zones` management.
+
+| 401, 403, 404, 429, 5xx mapped to typed errors.
+| Automatic backoff (caller handles `retry_after`).
+|===
+
+== Installation
+
+In your `shard.yml`:
+
+[source,yaml]
+----
+dependencies:
+  scaleway-api:
+    github: aloli-crystal/crystal-scaleway-api
+    version: ~> 0.1
+----
+
+Then `shards install`.
+
+== Quick start
+
+[source,crystal]
+----
+require "scaleway-api"
+
+client = ScalewayApi::Client.new(
+  secret_key:         ENV["SCW_SECRET_KEY"],
+  default_project_id: ENV["SCW_DEFAULT_PROJECT_ID"],
+  default_zone:       "fr-par-2",
+)
+
+# IAM SSH keys (scoped to a project)
+key = client.ssh_keys.create(name: "laptop", public_key: "ssh-ed25519 AAAA...")
+
+# Elastic Metal catalogue
+offer = client.baremetal.offers.list.find(&.stock.== "available").not_nil!
+
+# OS template (Debian, Ubuntu, Rocky, FreeBSD...)
+os = client.baremetal.oses.find_by_name_prefix("debian").not_nil!
+
+# Single POST: creates the server and launches install
+server = client.baremetal.servers.create(
+  offer_id: offer.id,
+  install: ScalewayApi::Endpoints::Baremetal::Install.new(
+    os_id:       os.id,
+    hostname:    "web01.aloli.fr",
+    ssh_key_ids: [key.id],
+  ),
+  reverse: "web01.aloli.fr",
+)
+
+# Poll via events
+loop do
+  events = client.baremetal.servers.events(server_id: server.id)
+  latest = events.find { |e| e.action == "install_server" }
+  break if latest && (latest.success? || latest.failed?)
+  sleep 30.seconds
+end
+----
+
+Full runnable example in
+link:examples/provision_debian_baremetal.cr[`examples/provision_debian_baremetal.cr`].
+
+== Getting a Scaleway API key
+
+. Sign in at https://console.scaleway.com/iam/api-keys[console.scaleway.com/iam/api-keys].
+. Create a new API key with the permissions:
++
+[source]
+----
+IAMReadOnly      (GET /iam/v1alpha1/ssh-keys*)
+IAMFullAccess    (POST/DELETE /iam/v1alpha1/ssh-keys)
+ElasticMetalFullAccess (all /baremetal/v1/*)
+----
+. Record `secret_key` (it is only shown once).
+. Grab the target project UUID in
+  https://console.scaleway.com/project/settings[project settings].
+
+== Running against the real API
+
+Specs use a `FakeTransport` (stdlib-only) with no network calls. For an
+integration run against the real Scaleway API:
+
+[source,sh]
+----
+export SCW_SECRET_KEY=...
+export SCW_DEFAULT_PROJECT_ID=...
+export SSH_PUBLIC_KEY="ssh-ed25519 AAAA... me@host"
+crystal run examples/provision_debian_baremetal.cr
+----
+
+Without `SCW_CONFIRM=yes`, the example stops *before* creating a server:
+it only lists keys, offers and OSes.
+
+== Status
+
+Early stage (v0.1 — provisioning endpoints covered).
+
+* link:ARCHITECTURE.adoc[ARCHITECTURE.adoc] — auth, routing, error taxonomy.
+* link:CHANGELOG.adoc[CHANGELOG.adoc] — changelog.
+
+== License
+
+MIT. See link:LICENSE[LICENSE].
