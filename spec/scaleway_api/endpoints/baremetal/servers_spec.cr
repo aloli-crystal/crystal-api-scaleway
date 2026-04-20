@@ -190,6 +190,132 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
     end
   end
 
+  describe "#reboot" do
+    it "POSTe /reboot avec boot_type=normal par défaut" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      transport.stub(
+        "POST",
+        /servers\/srv-1\/reboot/,
+        status: 200,
+        body: %({"id":"srv-1","status":"stopping","hostname":"web01.aloli.fr"}),
+      )
+
+      server = client.baremetal.servers.reboot(server_id: "srv-1")
+      server.id.should eq("srv-1")
+      server.status.should eq("stopping")
+
+      req = transport.requests.find { |r| r.method == "POST" }.not_nil!
+      req.url.should contain("/baremetal/v1/zones/fr-par-2/servers/srv-1/reboot")
+      req.body.should eq(%({"boot_type":"normal"}))
+    end
+
+    it "POSTe boot_type=rescue quand BootType::Rescue est passé" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      transport.stub(
+        "POST",
+        /servers\/srv-1\/reboot/,
+        status: 200,
+        body: %({"id":"srv-1","status":"stopping"}),
+      )
+
+      client.baremetal.servers.reboot(
+        server_id: "srv-1",
+        boot_type: ScalewayApi::Endpoints::Baremetal::BootType::Rescue,
+      )
+
+      req = transport.requests.find { |r| r.method == "POST" }.not_nil!
+      req.body.should eq(%({"boot_type":"rescue"}))
+    end
+
+    it "accepte une zone explicite" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      transport.stub(
+        "POST",
+        /zones\/nl-ams-1\/servers\/srv-9\/reboot/,
+        status: 200,
+        body: %({"id":"srv-9","status":"stopping"}),
+      )
+
+      client.baremetal.servers.reboot(
+        server_id: "srv-9",
+        boot_type: ScalewayApi::Endpoints::Baremetal::BootType::Rescue,
+        zone: "nl-ams-1",
+      )
+
+      req = transport.requests.find { |r| r.method == "POST" }.not_nil!
+      req.url.should contain("/baremetal/v1/zones/nl-ams-1/servers/srv-9/reboot")
+    end
+
+    it "décode le Server renvoyé (status, IPs)" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      transport.stub(
+        "POST",
+        /servers\/srv-1\/reboot/,
+        status: 200,
+        body: %({
+          "id":"srv-1",
+          "status":"stopping",
+          "hostname":"web01.aloli.fr",
+          "ips":[{"id":"ip-1","address":"51.15.1.2","version":"IPv4"}]
+        }),
+      )
+
+      server = client.baremetal.servers.reboot(
+        server_id: "srv-1",
+        boot_type: ScalewayApi::Endpoints::Baremetal::BootType::Rescue,
+      )
+      server.ips.size.should eq(1)
+      server.ips.first.address.should eq("51.15.1.2")
+      server.hostname.should eq("web01.aloli.fr")
+    end
+
+    it "remonte AuthenticationError sur 403 permissions_denied" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      transport.stub(
+        "POST",
+        /servers\/srv-1\/reboot/,
+        status: 403,
+        body: %({"type":"permissions_denied","message":"insufficient permissions"}),
+      )
+
+      expect_raises(ScalewayApi::AuthenticationError, /403/) do
+        client.baremetal.servers.reboot(server_id: "srv-1")
+      end
+    end
+
+    it "remonte ApiError sur 409 (serveur en cours d'installation)" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      transport.stub(
+        "POST",
+        /servers\/srv-1\/reboot/,
+        status: 409,
+        body: %({"type":"precondition_failed","message":"server is installing"}),
+      )
+
+      ex = expect_raises(ScalewayApi::ApiError, /409/) do
+        client.baremetal.servers.reboot(
+          server_id: "srv-1",
+          boot_type: ScalewayApi::Endpoints::Baremetal::BootType::Rescue,
+        )
+      end
+      ex.http_status.should eq(409)
+      ex.error_code.should eq("precondition_failed")
+    end
+  end
+
+  describe "BootType" do
+    it "sérialise Normal et Rescue en minuscules" do
+      ScalewayApi::Endpoints::Baremetal::BootType::Normal.to_api.should eq("normal")
+      ScalewayApi::Endpoints::Baremetal::BootType::Rescue.to_api.should eq("rescue")
+    end
+  end
+
   describe "#update" do
     it "PATCHe le reverse" do
       transport = FakeTransport.new

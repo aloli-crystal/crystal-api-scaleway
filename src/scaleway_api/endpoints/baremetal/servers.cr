@@ -68,6 +68,28 @@ module ScalewayApi
         end
       end
 
+      # Mode de redémarrage accepté par `Servers#reboot`.
+      #
+      # * `Normal` (`"normal"`) — redémarrage classique vers l'OS installé.
+      # * `Rescue` (`"rescue"`) — bascule en mode rescue Scaleway. Les
+      #   clés SSH présentes dans l'`install` initial sont automatiquement
+      #   ré-injectées par Scaleway dans l'environnement rescue (pas besoin
+      #   de les repasser). Le rescue dure environ 1 h, puis Scaleway
+      #   reboote automatiquement sur l'OS installé.
+      enum BootType
+        Normal
+        Rescue
+
+        # Valeur attendue par l'API Scaleway dans le corps JSON
+        # (`"normal"` ou `"rescue"`, en minuscules).
+        def to_api : String
+          case self
+          in Normal then "normal"
+          in Rescue then "rescue"
+          end
+        end
+      end
+
       # Endpoints `/baremetal/v1/zones/{zone}/servers`.
       #
       # Contrairement à OVH (où il faut commander le serveur, puis attendre
@@ -181,6 +203,48 @@ module ScalewayApi
             "POST",
             "/baremetal/v1/zones/#{z}/servers/#{server_id}/install",
             body: install.to_json_object,
+          )
+          Server.from_any(result.not_nil!)
+        end
+
+        # Redémarre un serveur, éventuellement en mode rescue.
+        #
+        # `POST /baremetal/v1/zones/{zone}/servers/{server_id}/reboot` avec
+        # `{"boot_type": "normal"}` ou `{"boot_type": "rescue"}`.
+        #
+        # En mode `Rescue`, Scaleway ré-injecte automatiquement les clés
+        # SSH posées à la création du serveur (champ `ssh_key_ids` de
+        # l'`install`) dans l'environnement rescue. L'IP de management
+        # reste la même (pas de NAT spécifique). Le rescue dure environ
+        # 1 h avant que Scaleway ne reboote automatiquement sur l'OS
+        # installé.
+        #
+        # Erreurs usuelles :
+        #
+        # * HTTP 403 (`permissions_denied`) — la clé IAM n'a pas le droit
+        #   `ElasticMetalFullAccess`.
+        # * HTTP 409 — le serveur n'est pas dans un état compatible
+        #   (`installing`, `delivering`, `deleting`…). Attendre `ready`
+        #   ou `stopped` avant de relancer.
+        #
+        # Retourne l'objet `Server` mis à jour (status typiquement
+        # `stopping` puis `starting`, puis `ready` / `rescue` selon le
+        # mode).
+        def reboot(
+          server_id : String,
+          boot_type : BootType = BootType::Normal,
+          zone : String? = nil,
+        ) : Server
+          z = @client.resolve_zone(zone)
+          body = JSON.build do |json|
+            json.object do
+              json.field "boot_type", boot_type.to_api
+            end
+          end
+          result = @client.call(
+            "POST",
+            "/baremetal/v1/zones/#{z}/servers/#{server_id}/reboot",
+            body: body,
           )
           Server.from_any(result.not_nil!)
         end
