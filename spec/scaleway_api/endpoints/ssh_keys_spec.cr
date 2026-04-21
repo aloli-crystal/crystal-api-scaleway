@@ -90,7 +90,7 @@ describe ScalewayApi::Endpoints::SshKeys do
     key = client.ssh_keys.create(name: "laptop", public_key: "ssh-ed25519 AAAA")
     key.id.should eq("key-new")
 
-    req = transport.requests.find { |r| r.method == "POST" }.not_nil!
+    req = transport.requests.find! { |r| r.method == "POST" }
     req.body.should contain(%("name":"laptop"))
     req.body.should contain(%("public_key":"ssh-ed25519 AAAA"))
     req.body.should contain(%("project_id":"proj-abc"))
@@ -103,7 +103,7 @@ describe ScalewayApi::Endpoints::SshKeys do
 
     client.ssh_keys.delete("key-1")
 
-    req = transport.requests.find { |r| r.method == "DELETE" }.not_nil!
+    req = transport.requests.find! { |r| r.method == "DELETE" }
     req.url.should contain("/iam/v1alpha1/ssh-keys/key-1")
   end
 end

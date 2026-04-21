@@ -124,7 +124,7 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
       server.id.should eq("srv-new")
       server.status.should eq("delivering")
 
-      req = transport.requests.find { |r| r.method == "POST" }.not_nil!
+      req = transport.requests.find! { |r| r.method == "POST" }
       req.body.should contain(%("offer_id":"offer-1"))
       req.body.should contain(%("project_id":"proj-abc"))
       req.body.should contain(%("name":"web01"))
@@ -157,7 +157,7 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
         tags: ["prod", "web"],
       )
 
-      req = transport.requests.find { |r| r.method == "POST" }.not_nil!
+      req = transport.requests.find! { |r| r.method == "POST" }
       req.body.should contain(%("description":"serveur web prod"))
       req.body.should contain(%("tags":["prod","web"]))
     end
@@ -183,7 +183,7 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
       server = client.baremetal.servers.install(server_id: "srv-1", install: install)
       server.installing?.should be_true
 
-      req = transport.requests.find { |r| r.method == "POST" }.not_nil!
+      req = transport.requests.find! { |r| r.method == "POST" }
       req.url.should contain("/servers/srv-1/install")
       req.body.should contain(%("os_id":"os-1"))
       req.body.should contain(%("hostname":"web01.aloli.fr"))
@@ -205,7 +205,7 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
       server.id.should eq("srv-1")
       server.status.should eq("stopping")
 
-      req = transport.requests.find { |r| r.method == "POST" }.not_nil!
+      req = transport.requests.find! { |r| r.method == "POST" }
       req.url.should contain("/baremetal/v1/zones/fr-par-2/servers/srv-1/reboot")
       req.body.should eq(%({"boot_type":"normal"}))
     end
@@ -225,7 +225,7 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
         boot_type: ScalewayApi::Endpoints::Baremetal::BootType::Rescue,
       )
 
-      req = transport.requests.find { |r| r.method == "POST" }.not_nil!
+      req = transport.requests.find! { |r| r.method == "POST" }
       req.body.should eq(%({"boot_type":"rescue"}))
     end
 
@@ -245,7 +245,7 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
         zone: "nl-ams-1",
       )
 
-      req = transport.requests.find { |r| r.method == "POST" }.not_nil!
+      req = transport.requests.find! { |r| r.method == "POST" }
       req.url.should contain("/baremetal/v1/zones/nl-ams-1/servers/srv-9/reboot")
     end
 
@@ -332,7 +332,7 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
         reverse: "web01.aloli.fr",
       )
 
-      req = transport.requests.find { |r| r.method == "PATCH" }.not_nil!
+      req = transport.requests.find! { |r| r.method == "PATCH" }
       req.body.should eq(%({"reverse":"web01.aloli.fr"}))
     end
   end
@@ -374,7 +374,7 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
 
       client.baremetal.servers.delete("srv-1")
 
-      req = transport.requests.find { |r| r.method == "DELETE" }.not_nil!
+      req = transport.requests.find! { |r| r.method == "DELETE" }
       req.url.should contain("/servers/srv-1")
     end
   end
