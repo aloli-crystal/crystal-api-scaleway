@@ -209,7 +209,12 @@ module ScalewayApi
       @baremetal ||= Endpoints::Baremetal::Namespace.new(self)
     end
 
+    def domain : Endpoints::Domain::Namespace
+      @domain ||= Endpoints::Domain::Namespace.new(self)
+    end
+
     @ssh_keys : Endpoints::SshKeys?
     @baremetal : Endpoints::Baremetal::Namespace?
+    @domain : Endpoints::Domain::Namespace?
   end
 end

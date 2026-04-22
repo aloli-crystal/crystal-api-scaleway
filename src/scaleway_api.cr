@@ -4,6 +4,7 @@ require "./scaleway_api/endpoints/ssh_keys"
 require "./scaleway_api/endpoints/baremetal/offers"
 require "./scaleway_api/endpoints/baremetal/oses"
 require "./scaleway_api/endpoints/baremetal/servers"
+require "./scaleway_api/endpoints/domain/records"
 require "./scaleway_api/client"
 
 # ScalewayApi — client Crystal pur (stdlib uniquement) pour l'API
@@ -11,13 +12,14 @@ require "./scaleway_api/client"
 #
 # Couvre le strict nécessaire au provisioning Elastic Metal :
 #
-# * `client.ssh_keys`        — lister / créer / supprimer les clés SSH IAM
-#                              du projet.
+# * `client.ssh_keys`          — lister / créer / supprimer les clés SSH IAM.
 # * `client.baremetal.offers`  — catalogue Elastic Metal (EM-A115X-SSD, etc.).
 # * `client.baremetal.oses`    — templates d'OS (Debian 13, Ubuntu 24.04…).
 # * `client.baremetal.servers` — création + installation en un appel,
-#                                réinstallation, mise à jour (reverse),
+#                                réinstallation, mise à jour (nom, reverse),
 #                                suivi par événements.
+# * `client.domain.records`    — gestion des records DNS d'une zone
+#                                (A/AAAA/CNAME/MX…), changesets, idempotent.
 #
 # ```
 # require "scaleway-api"
