@@ -301,6 +301,10 @@ module ScalewayApi
         #
         # Le reverse est *normalisé* par Scaleway : passez `"web01.aloli.fr"`
         # (sans point final) ou `"web01.aloli.fr."` indifféremment.
+        #
+        # ATTENTION : le `reverse` posé ici ne s'applique qu'à l'IP
+        # PRIMAIRE (l'IPv4). Pour le reverse de l'IPv6 (ou de toute
+        # autre IP secondaire), utilisez {#update_ip}.
         def update(
           server_id : String,
           zone : String? = nil,
@@ -330,6 +334,35 @@ module ScalewayApi
             body: body,
           )
           Server.from_any(result.not_nil!)
+        end
+
+        # Met à jour une IP spécifique d'un serveur (reverse DNS par IP).
+        #
+        # `PATCH /baremetal/v1/zones/{zone}/servers/{server_id}/ips/{ip_id}`.
+        #
+        # Utile pour poser le reverse de l'IPv6 (ou de toute IP
+        # secondaire). `{#update}` ne gère que l'IP primaire (IPv4).
+        #
+        # Le `reverse` est *normalisé* par Scaleway : passez
+        # `"web01.aloli.fr"` ou `"web01.aloli.fr."` indifféremment.
+        def update_ip(
+          server_id : String,
+          ip_id : String,
+          reverse : String,
+          zone : String? = nil,
+        ) : ServerIp
+          z = @client.resolve_zone(zone)
+          body = JSON.build do |json|
+            json.object do
+              json.field "reverse", reverse
+            end
+          end
+          result = @client.call(
+            "PATCH",
+            "/baremetal/v1/zones/#{z}/servers/#{server_id}/ips/#{ip_id}",
+            body: body,
+          )
+          ServerIp.from_any(result.not_nil!)
         end
 
         # Supprime un serveur.

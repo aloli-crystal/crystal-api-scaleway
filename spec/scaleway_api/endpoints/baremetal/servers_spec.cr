@@ -410,6 +410,31 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
     end
   end
 
+  describe "#update_ip" do
+    it "PATCHe le reverse d'une IP spécifique (reverse IPv6, IP secondaire…)" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      transport.stub(
+        "PATCH",
+        /servers\/srv-1\/ips\/ip-v6/,
+        status: 200,
+        body: %({"id":"ip-v6","address":"2001:bc8::1","reverse":"web01.aloli.fr","version":"IPv6"}),
+      )
+
+      ip = client.baremetal.servers.update_ip(
+        server_id: "srv-1",
+        ip_id: "ip-v6",
+        reverse: "web01.aloli.fr",
+      )
+
+      req = transport.requests.find! { |r| r.method == "PATCH" }
+      req.url.should contain("/servers/srv-1/ips/ip-v6")
+      req.body.should eq(%({"reverse":"web01.aloli.fr"}))
+      ip.address.should eq("2001:bc8::1")
+      ip.reverse.should eq("web01.aloli.fr")
+    end
+  end
+
   describe "#events" do
     it "liste les événements et décode leur statut" do
       transport = FakeTransport.new

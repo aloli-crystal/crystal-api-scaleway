@@ -9,6 +9,17 @@ et ce projet suit https://semver.org/lang/fr/[Semantic Versioning].
 
 == [Non publié]
 
+== 0.4.2 (25 avril 2026)
+
+=== Ajouté
+
+* `client.baremetal.servers.update_ip(server_id, ip_id, reverse, zone)` :
+  pose le reverse DNS sur une IP spécifique d'un serveur Elastic
+  Metal (`PATCH /baremetal/v1/zones/{zone}/servers/{server_id}/ips/{ip_id}`).
+  Complète `update(reverse:)` qui, lui, ne gère que l'IP primaire
+  (IPv4). Nécessaire pour poser le reverse IPv6 automatiquement
+  sans passer par la console Scaleway.
+
 == 0.4.1 (24 avril 2026)
 
 === Corrigé
