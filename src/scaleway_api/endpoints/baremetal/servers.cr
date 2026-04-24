@@ -141,6 +141,36 @@ module ScalewayApi
           Server.from_any(result.not_nil!)
         end
 
+        # Balaye l'ensemble des zones Scaleway connues
+        # (`ScalewayApi::ZONES`) à la recherche d'un serveur Elastic
+        # Metal par UUID. Utile quand l'appelant connaît l'UUID mais
+        # pas la zone (outillage multi-zones, script d'import, UX
+        # path-like).
+        #
+        # Retourne le premier `Server` trouvé (l'UUID est unique côté
+        # Scaleway, donc il ne peut y en avoir qu'un). Retourne `nil`
+        # si aucune zone ne reconnaît l'UUID.
+        #
+        # Les zones qui répondent 501 `unknown_service` (pas encore
+        # activées pour Elastic Metal) sont silencieusement ignorées.
+        # Les autres `ApiError` sont relayées à l'appelant.
+        #
+        # La zone d'appartenance est accessible ensuite via
+        # `server.zone`.
+        def find_any_zone(server_id : String) : Server?
+          ScalewayApi::ZONES.each do |zone|
+            begin
+              return get(server_id, zone: zone)
+            rescue ScalewayApi::NotFound
+              next
+            rescue ex : ScalewayApi::ApiError
+              next if ex.http_status == 501
+              raise ex
+            end
+          end
+          nil
+        end
+
         # Crée un serveur *et* lance son installation.
         #
         # `POST /baremetal/v1/zones/{zone}/servers` avec `offer_id`,

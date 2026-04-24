@@ -69,6 +69,79 @@ describe ScalewayApi::Endpoints::Baremetal::Servers do
     req.url.should contain("project_id=proj-xyz")
   end
 
+  describe "#find_any_zone" do
+    it "retourne le serveur dès qu'une zone le reconnaît" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      # Toutes les zones renvoient 404 par défaut…
+      transport.stub(
+        "GET",
+        /zones\/.+\/servers\/srv-1/,
+        status: 404,
+        body: %({"type":"resource_not_found","message":"Server not found"}),
+      )
+      # …sauf pl-waw-3 qui renvoie le serveur. Le FakeTransport
+      # sélectionne le dernier stub matchant → celui-ci gagne.
+      transport.stub(
+        "GET",
+        /zones\/pl-waw-3\/servers\/srv-1/,
+        status: 200,
+        body: %({"id":"srv-1","status":"ready","zone":"pl-waw-3","ips":[{"id":"ip-1","address":"151.115.98.135","version":"IPv4"}]}),
+      )
+
+      server = client.baremetal.servers.find_any_zone("srv-1")
+      server.should_not be_nil
+      server.not_nil!.zone.should eq("pl-waw-3")
+      server.not_nil!.ips.first.address.should eq("151.115.98.135")
+    end
+
+    it "retourne nil si aucune zone ne reconnaît l'UUID" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      transport.stub(
+        "GET",
+        /servers\/srv-absent/,
+        status: 404,
+        body: %({"type":"resource_not_found","message":"Server not found"}),
+      )
+
+      server = client.baremetal.servers.find_any_zone("srv-absent")
+      server.should be_nil
+      # A bien interrogé toutes les zones connues.
+      transport.requests.size.should eq(ScalewayApi::ZONES.size)
+    end
+
+    it "ignore silencieusement les zones qui répondent 501 (unknown_service)" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      # Toutes les zones → 501 (pas activées pour baremetal)
+      transport.stub(
+        "GET",
+        /servers\/srv-1/,
+        status: 501,
+        body: %({"type":"unknown_service","message":"unknown service"}),
+      )
+
+      server = client.baremetal.servers.find_any_zone("srv-1")
+      server.should be_nil
+    end
+
+    it "relaie les ApiError non-501 (ex. 500 erreur interne)" do
+      transport = FakeTransport.new
+      client = build_client(transport)
+      transport.stub(
+        "GET",
+        /servers\/srv-1/,
+        status: 500,
+        body: %({"type":"internal","message":"boom"}),
+      )
+
+      expect_raises(ScalewayApi::ApiError) do
+        client.baremetal.servers.find_any_zone("srv-1")
+      end
+    end
+  end
+
   it "récupère un serveur par UUID et décode ses IPs" do
     transport = FakeTransport.new
     client = build_client(transport)

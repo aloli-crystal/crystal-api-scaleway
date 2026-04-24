@@ -9,6 +9,19 @@ et ce projet suit https://semver.org/lang/fr/[Semantic Versioning].
 
 == [Non publié]
 
+== 0.4.0 (24 avril 2026)
+
+=== Ajouté
+
+* `client.baremetal.servers.find_any_zone(server_id)` : balaye
+  `ScalewayApi::ZONES` à la recherche d'un UUID dont on ne connaît
+  pas la zone. Retourne le premier `Server` trouvé (l'UUID est unique
+  côté Scaleway) ou `nil`. Les zones qui répondent 501
+  `unknown_service` (pas encore activées pour Elastic Metal) sont
+  silencieusement ignorées, les autres `ApiError` sont relayées.
+  Utile pour les outils qui importent un serveur par UUID sans
+  savoir dans quelle région Scaleway il vit.
+
 == 0.2.0 (20 avril 2026)
 
 === Ajouté
