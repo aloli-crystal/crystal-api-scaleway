@@ -9,6 +9,29 @@ et ce projet suit https://semver.org/lang/fr/[Semantic Versioning].
 
 == [Non publié]
 
+== 0.4.1 (24 avril 2026)
+
+=== Corrigé
+
+* Documentation de `BootType::Rescue` : le commentaire précédent
+  affirmait que « les clés SSH présentes dans l'install initial
+  sont automatiquement ré-injectées par Scaleway dans le rescue »,
+  ce qui était une interprétation non vérifiée contre la doc
+  officielle. Correction avec citation et lien vers
+  https://www.scaleway.com/en/docs/bare-metal/elastic-metal/how-to/use-rescue-mode/[la
+  how-to officielle] :
++
+** L'utilisateur du rescue est `rescue` (pas `root`).
+** La liste de clés est celle posée à l'install initial
+   (`install.ssh_key_ids`). Aucun endpoint documenté ne rafraîchit
+   cette liste sans refaire un `install`.
+** Ajouter une clé au projet après création du serveur ne propage
+   pas la clé dans le rescue. Pour resynchroniser, appeler
+   `Servers#install` avec la liste à jour (destructif au disque).
+
+Aucun changement de code — uniquement de la doc qui était
+trompeuse.
+
 == 0.4.0 (24 avril 2026)
 
 === Ajouté

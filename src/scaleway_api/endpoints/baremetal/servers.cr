@@ -71,11 +71,27 @@ module ScalewayApi
       # Mode de redémarrage accepté par `Servers#reboot`.
       #
       # * `Normal` (`"normal"`) — redémarrage classique vers l'OS installé.
-      # * `Rescue` (`"rescue"`) — bascule en mode rescue Scaleway. Les
-      #   clés SSH présentes dans l'`install` initial sont automatiquement
-      #   ré-injectées par Scaleway dans l'environnement rescue (pas besoin
-      #   de les repasser). Le rescue dure environ 1 h, puis Scaleway
-      #   reboote automatiquement sur l'OS installé.
+      # * `Rescue` (`"rescue"`) — bascule en mode rescue Scaleway
+      #   (image Ubuntu en RAM, utilisateur `rescue`). Le rescue dure
+      #   environ 1 h, puis Scaleway reboote automatiquement sur l'OS
+      #   installé.
+      #
+      #   ATTENTION sur l'injection des clés SSH : d'après la doc
+      #   officielle (https://www.scaleway.com/en/docs/bare-metal/elastic-metal/how-to/use-rescue-mode/),
+      #   l'authentification rescue utilise « the SSH keys **registered
+      #   for your Elastic Metal server** » — c'est-à-dire la liste
+      #   `install.ssh_key_ids` posée lors de l'install initiale
+      #   (`Servers#create` ou `Servers#install`). Aucun endpoint
+      #   documenté ne permet de rafraîchir cette liste sans refaire
+      #   un `install`.
+      #
+      #   Conséquence pratique : ajouter une clé au projet
+      #   (https://console.scaleway.com/project/ssh-keys) APRÈS la
+      #   création du serveur **ne propage pas la clé** dans le rescue.
+      #   Le prochain `reboot(Rescue)` lira la même liste figée
+      #   qu'avant. Pour resynchroniser, il faut appeler
+      #   `Servers#install` avec la nouvelle liste `ssh_key_ids` (ce
+      #   qui réinstalle l'OS sur le disque).
       enum BootType
         Normal
         Rescue
