@@ -5,6 +5,7 @@ require "./scaleway_api/endpoints/baremetal/offers"
 require "./scaleway_api/endpoints/baremetal/oses"
 require "./scaleway_api/endpoints/baremetal/servers"
 require "./scaleway_api/endpoints/domain/records"
+require "./scaleway_api/endpoints/projects"
 require "./scaleway_api/client"
 
 # ScalewayApi — client Crystal pur (stdlib uniquement) pour l'API

@@ -213,8 +213,13 @@ module ScalewayApi
       @domain ||= Endpoints::Domain::Namespace.new(self)
     end
 
+    def projects : Endpoints::Projects
+      @projects ||= Endpoints::Projects.new(self)
+    end
+
     @ssh_keys : Endpoints::SshKeys?
     @baremetal : Endpoints::Baremetal::Namespace?
     @domain : Endpoints::Domain::Namespace?
+    @projects : Endpoints::Projects?
   end
 end

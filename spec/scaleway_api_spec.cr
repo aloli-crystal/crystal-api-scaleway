@@ -2,7 +2,7 @@ require "./spec_helper"
 
 describe ScalewayApi do
   it "expose une version" do
-    ScalewayApi::VERSION.should eq("0.4.2")
+    ScalewayApi::VERSION.should eq("0.5.0")
   end
 
   it "liste les zones Scaleway les plus courantes" do
