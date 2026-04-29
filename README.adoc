@@ -1,4 +1,4 @@
-= scaleway-api
+= api-scaleway
 :toc: left
 :toc-title: Table of Contents
 :toclevels: 3
@@ -12,19 +12,19 @@ polling, reverse DNS.
 
 [NOTE]
 ====
-*scaleway-api* is a sister project in the Aloli Crystal ecosystem, alongside
-https://github.com/aloli-crystal/crystal-ovh-api[crystal-ovh-api] (the OVHcloud
-counterpart), https://github.com/aloli-crystal/crystal-beryl[crystal-beryl]
+*api-scaleway* is a sister project in the Aloli Crystal ecosystem, alongside
+https://github.com/aloli-crystal/api-ovh[api-ovh] (the OVHcloud
+counterpart), https://github.com/aloli-crystal/beryl[beryl]
 (agentless FreeBSD configuration) and
 https://github.com/aloli-crystal/crystal-silex[crystal-silex] (pure-Crystal
 FAT12 / cloud-init NoCloud writer). Zero external dependencies: only
 `HTTP::Client`, `JSON`, `URI` from the Crystal stdlib.
 ====
 
-== Why scaleway-api?
+== Why api-scaleway?
 
 Scaleway ships official SDKs for Go, Python, Node and PHP, but not Crystal.
-scaleway-api exposes an idiomatic Crystal API, easy to test by injecting a
+api-scaleway exposes an idiomatic Crystal API, easy to test by injecting a
 fake HTTP transport, with a scope limited to real bare-metal provisioning
 needs — not a blanket wrapper for all 70+ Scaleway products.
 
@@ -42,7 +42,7 @@ needs — not a blanket wrapper for all 70+ Scaleway products.
 
 [cols="1,3"]
 |===
-| scaleway-api does | scaleway-api does not (yet)
+| api-scaleway does | api-scaleway does not (yet)
 
 | IAM SSH keys (`/iam/v1alpha1/ssh-keys`): list, get, create, delete.
 | IAM users / groups / policies.
@@ -64,8 +64,8 @@ In your `shard.yml`:
 [source,yaml]
 ----
 dependencies:
-  scaleway-api:
-    github: aloli-crystal/crystal-scaleway-api
+  api-scaleway:
+    github: aloli-crystal/crystal-api-scaleway
     version: ~> 0.1
 ----
 
@@ -75,7 +75,7 @@ Then `shards install`.
 
 [source,crystal]
 ----
-require "scaleway-api"
+require "api-scaleway"
 
 client = ScalewayApi::Client.new(
   secret_key:         ENV["SCW_SECRET_KEY"],

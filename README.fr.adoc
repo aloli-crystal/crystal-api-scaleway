@@ -1,4 +1,4 @@
-= scaleway-api
+= api-scaleway
 :toc: left
 :toc-title: Table des matières
 :toclevels: 3
@@ -12,18 +12,18 @@ par événements, DNS inverse.
 
 [NOTE]
 ====
-*scaleway-api* s'intègre dans l'écosystème Aloli aux côtés de
-https://github.com/aloli-crystal/crystal-ovh-api[crystal-ovh-api] (son pendant
-pour OVHcloud), https://github.com/aloli-crystal/crystal-beryl[crystal-beryl]
+*api-scaleway* s'intègre dans l'écosystème Aloli aux côtés de
+https://github.com/aloli-crystal/api-ovh[api-ovh] (son pendant
+pour OVHcloud), https://github.com/aloli-crystal/beryl[beryl]
 (configuration FreeBSD agentless) et https://github.com/aloli-crystal/crystal-silex[crystal-silex]
 (writer FAT12 cloud-init). Zéro dépendance externe : uniquement
 `HTTP::Client`, `JSON`, `URI` de la stdlib Crystal.
 ====
 
-== Pourquoi scaleway-api ?
+== Pourquoi api-scaleway ?
 
 Scaleway publie des SDK officiels en Go, Python, Node et PHP, mais pas en
-Crystal. scaleway-api fournit une API Crystal idiomatique, testable par
+Crystal. api-scaleway fournit une API Crystal idiomatique, testable par
 injection de transport, avec un périmètre réduit aux besoins réels de
 provisioning bare-metal — pas d'abstraction générique sur l'ensemble des
 70+ produits Scaleway.
@@ -42,7 +42,7 @@ provisioning bare-metal — pas d'abstraction générique sur l'ensemble des
 
 [cols="1,3"]
 |===
-| scaleway-api fait | scaleway-api ne fait pas (pour l'instant)
+| api-scaleway fait | api-scaleway ne fait pas (pour l'instant)
 
 | Clés SSH IAM (`/iam/v1alpha1/ssh-keys`) : list, get, create, delete.
 | Gestion des utilisateurs / groupes / policies IAM.
@@ -64,8 +64,8 @@ Dans votre `shard.yml` :
 [source,yaml]
 ----
 dependencies:
-  scaleway-api:
-    github: aloli-crystal/crystal-scaleway-api
+  api-scaleway:
+    github: aloli-crystal/crystal-api-scaleway
     version: ~> 0.1
 ----
 
@@ -75,7 +75,7 @@ Puis `shards install`.
 
 [source,crystal]
 ----
-require "scaleway-api"
+require "api-scaleway"
 
 client = ScalewayApi::Client.new(
   secret_key:         ENV["SCW_SECRET_KEY"],

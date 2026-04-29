@@ -25,7 +25,7 @@ module ScalewayApi
       #
       # Le champ `cloud_init` existe côté Scaleway mais n'est pas exposé
       # dans cette v0.1 : l'écosystème Aloli pose sa propre post-install
-      # via crystal-beryl après le premier boot.
+      # via beryl après le premier boot.
       struct Install
         getter os_id : String
         getter hostname : String

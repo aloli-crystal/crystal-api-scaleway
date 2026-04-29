@@ -7,7 +7,20 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format s'inspire de https://keepachangelog.com/fr/1.1.0/[Keep a Changelog]
 et ce projet suit https://semver.org/lang/fr/[Semantic Versioning].
 
-== [Non publié]
+== 0.5.1 (29 avril 2026)
+
+=== Modifié
+
+* **Repo GitHub renommé** `aloli-crystal/crystal-api-scaleway` →
+  `aloli-crystal/api-scaleway` (convention de nommage Aloli : les
+  créations originales abandonnent le préfixe `crystal-`). Les anciens
+  liens redirigent automatiquement.
+* Champ `name:` du `shard.yml` mis à jour de `scaleway-api` à
+  `api-scaleway` (alignement avec le nom du repo). Le module reste
+  `ScalewayApi` (sémantiquement plus naturel).
+* Nouveau fichier d'entrée shim `src/api-scaleway.cr` (charge
+  `src/scaleway_api.cr`) ; `require "scaleway-api"` devient
+  `require "api-scaleway"`.
 
 == 0.5.0 (25 avril 2026)
 
