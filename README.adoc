@@ -16,7 +16,7 @@ polling, reverse DNS.
 https://github.com/aloli-crystal/api-ovh[api-ovh] (the OVHcloud
 counterpart), https://github.com/aloli-crystal/beryl[beryl]
 (agentless FreeBSD configuration) and
-https://github.com/aloli-crystal/crystal-silex[crystal-silex] (pure-Crystal
+https://github.com/aloli-crystal/silex[silex] (pure-Crystal
 FAT12 / cloud-init NoCloud writer). Zero external dependencies: only
 `HTTP::Client`, `JSON`, `URI` from the Crystal stdlib.
 ====
@@ -65,7 +65,7 @@ In your `shard.yml`:
 ----
 dependencies:
   api-scaleway:
-    github: aloli-crystal/crystal-api-scaleway
+    github: aloli-crystal/api-scaleway
     version: ~> 0.1
 ----
 

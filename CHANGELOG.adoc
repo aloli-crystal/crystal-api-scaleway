@@ -11,7 +11,7 @@ et ce projet suit https://semver.org/lang/fr/[Semantic Versioning].
 
 === Modifié
 
-* **Repo GitHub renommé** `aloli-crystal/crystal-api-scaleway` →
+* **Repo GitHub renommé** `aloli-crystal/api-scaleway` →
   `aloli-crystal/api-scaleway` (convention de nommage Aloli : les
   créations originales abandonnent le préfixe `crystal-`). Les anciens
   liens redirigent automatiquement.

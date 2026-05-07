@@ -15,7 +15,7 @@ par événements, DNS inverse.
 *api-scaleway* s'intègre dans l'écosystème Aloli aux côtés de
 https://github.com/aloli-crystal/api-ovh[api-ovh] (son pendant
 pour OVHcloud), https://github.com/aloli-crystal/beryl[beryl]
-(configuration FreeBSD agentless) et https://github.com/aloli-crystal/crystal-silex[crystal-silex]
+(configuration FreeBSD agentless) et https://github.com/aloli-crystal/silex[silex]
 (writer FAT12 cloud-init). Zéro dépendance externe : uniquement
 `HTTP::Client`, `JSON`, `URI` de la stdlib Crystal.
 ====
@@ -65,7 +65,7 @@ Dans votre `shard.yml` :
 ----
 dependencies:
   api-scaleway:
-    github: aloli-crystal/crystal-api-scaleway
+    github: aloli-crystal/api-scaleway
     version: ~> 0.1
 ----
 
